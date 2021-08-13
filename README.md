@@ -6,7 +6,7 @@ What are zkSTARKs?
 ```math
 https://vitalik.ca/general/2017/11/09/starks_part_1.html
 https://vitalik.ca/general/2017/11/22/starks_part_2.html
-https://vitalik.ca/general/2017/11/22/starks_part_3.html
+https://vitalik.ca/general/2018/07/21/starks_part_3.html
 ```
 
 My take on the STARK101 tutorial by STARKWARE <br />
