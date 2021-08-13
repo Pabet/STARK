@@ -1,10 +1,14 @@
 from channel import Channel
 from field import FieldElement
 from merkle import MerkleTree
-from polynomial import interpolate_poly, X, prod
+from polynomial import Polynomial, interpolate_poly
 from hashlib import sha256
 from channel import serialize
+from src.constraints import first_constraint, second_constraint, third_constraint, get_CP, CP_eval
+from src.fri import next_fri_domain, next_fri_layer, fri_commit
 
+
+# part 1: Statement, Low-Degree-Extension and Commitment functions
 
 def create_execution_trace():
     trace = [FieldElement(1), FieldElement(3141592)]  # first two elements of the trace
@@ -41,8 +45,6 @@ def get_polynomial(x, y):
     # create the polynomial
     # G -> x_values, a -> y_values
     polynomial = interpolate_poly(x, y)
-    v = polynomial(2)
-    assert v == FieldElement(1302089273)
     return polynomial
 
 
@@ -63,59 +65,12 @@ def extend_domain():
     return e_d
 
 
-def first_constraint(fun):
-    numer0 = fun - 1
-    denom0 = X - 1
-    assert numer0(1) == 0  # f(x)-1 in divisible by (x-1)
-    assert numer0 % denom0 == 0  # the division yields a polynomial
-    pol0 = numer0 / denom0
-    assert pol0(2718) == 2509888982
-    return pol0
-
-
-def second_constraint(fun, g):
-    numer1 = fun - 2338775057
-    denom1 = X - g ** 1022
-    # assert numer1(2338775057) == 0  # f(x)-2338775057 in divisible by (x-2338775057)
-    assert numer1 % denom1 == 0  # the division yields a polynomial
-    pol1 = numer1 / denom1
-    assert pol1(5772) == 232961446
-    return pol1
-
-
-def third_constraint(fun, g):
-    numer2 = fun(X*(g**2)) - (fun(g*X))**2 - fun**2
-    print("Numerator at g^1020 is", numer2(g ** 1020))
-    print("Numerator at g^1021 is", numer2(g ** 1021))
-    denom2 = (X ** 1024 - 1) / ((X - g**1021) * (X - g**1022) * (X - g**1023))
-    pol2 = numer2 / denom2
-    assert pol2.degree() == 1023, f'The degree of the third constraint is {pol2.degree()} when it should be 1023.'
-    assert pol2(31415) == 2090051528
-    return pol2
-
-
-def get_CP(channel, pol0, pol1, pol2):
-    # create a random linear combination of the rational functions
-    alpha0 = channel.receive_random_field_element()
-    alpha1 = channel.receive_random_field_element()
-    alpha2 = channel.receive_random_field_element()
-    return alpha0*pol0 + alpha1*pol1 + alpha2*pol2
-
-
-def CP_eval(channel, p0, p1, p2, domain):
-    CP = get_CP(channel, p0, p1, p2)
-    return [CP(d) for d in domain]
-
-
 if __name__ == '__main__':
     # part 1: Statement, Low-Degree-Extension and Commitment
 
     a = create_execution_trace()
-
     g, G = find_sub_group()
-
     f = get_polynomial(G[:-1], a)
-
     eval_domain = extend_domain()
 
     # evaluation on the coset
@@ -133,20 +88,33 @@ if __name__ == '__main__':
 
     print(channel.proof)
 
+    # part2: Polynomial Constraints
+
     p0 = first_constraint(f)  # first rational function
     p1 = second_constraint(f, g)  # second rational function
     p2 = third_constraint(f, g)  # third rational function
 
-    print('deg p0 =', p0.degree())
-    print('deg p1 =', p1.degree())
-    print('deg p2 =', p2.degree())
+    # print('deg p0 =', p0.degree())
+    # print('deg p1 =', p1.degree())
+    # print('deg p2 =', p2.degree())
 
-    test_channel = Channel()
-    CP_test = get_CP(test_channel, p0, p1, p2)
-    assert CP_test.degree() == 1023, f'The degree of cp is {CP_test.degree()} when it should be 1023.'
-    assert CP_test(2439804) == 838767343, f'cp(2439804) = {CP_test(2439804)}, when it should be 838767343'
+    # channel = Channel()
+    cp = get_CP(channel, p0, p1, p2)
+    cp_eval = CP_eval(cp, eval_domain)
+    cp_merkle = MerkleTree(cp_eval)
 
-    channel = Channel()
-    CP_merkle = MerkleTree(CP_eval(channel, p0, p1, p2, eval_domain))
-    assert CP_merkle.root == 'a8c87ef9764af3fa005a1a2cf3ec8db50e754ccb655be7597ead15ed4a9110f1', 'Merkle tree root is wrong.'
-    print('Success!')
+    # part3: FRI
+
+    next_domain = next_fri_domain(eval_domain)
+
+    # test fri layer generation:
+    test_poly = Polynomial([FieldElement(2), FieldElement(3), FieldElement(0), FieldElement(1)])
+    test_domain = [FieldElement(3), FieldElement(5)]
+    beta = FieldElement(7)
+    next_p, next_d, next_l = next_fri_layer(test_poly, test_domain, beta)
+    assert next_p.poly == [FieldElement(23), FieldElement(7)]
+    assert next_d == [FieldElement(9)]
+    assert next_l == [FieldElement(86)]
+
+    fri_polys, fri_domains, fri_layers, fri_merkles = fri_commit(cp, eval_domain, cp_eval, cp_merkle, channel)
+    print(channel.proof)
