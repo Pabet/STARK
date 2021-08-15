@@ -20,7 +20,7 @@ def next_fri_polynomial(poly, beta):
 def next_fri_layer(poly, domain, beta):
     next_poly = next_fri_polynomial(poly, beta)
     next_domain = next_fri_domain(domain)
-    next_layer = [next_poly(x) for x in next_domain]
+    next_layer = [next_poly.eval(x) for x in next_domain]
     return next_poly, next_domain, next_layer
 
 
@@ -41,7 +41,7 @@ def fri_commit(cp, domain, cp_eval, cp_merkle, channel):
     return fri_polys, fri_domains, fri_layers, fri_merkles
 
 
-def test(cp, eval_domain, cp_eval, cp_merkle):
+def test_fri(cp, eval_domain, cp_eval, cp_merkle):
     test_channel = Channel()
     fri_polys, fri_domains, fri_layers, fri_merkles = fri_commit(cp, eval_domain, cp_eval, cp_merkle, test_channel)
     assert len(fri_layers) == 11, f'Expected number of FRI layers is 11, whereas it is actually {len(fri_layers)}.'

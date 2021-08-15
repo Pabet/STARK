@@ -5,7 +5,9 @@ from polynomial import Polynomial, interpolate_poly
 from hashlib import sha256
 from channel import serialize
 from src.constraints import first_constraint, second_constraint, third_constraint, get_CP, CP_eval
+from src.decommit import decommit_fri
 from src.fri import next_fri_domain, next_fri_layer, fri_commit
+
 
 
 # part 1: Statement, Low-Degree-Extension and Commitment functions
@@ -67,6 +69,7 @@ def extend_domain():
 
 if __name__ == '__main__':
     # part 1: Statement, Low-Degree-Extension and Commitment
+    print("Generating the trace...")
 
     a = create_execution_trace()
     g, G = find_sub_group()
@@ -98,12 +101,15 @@ if __name__ == '__main__':
     # print('deg p1 =', p1.degree())
     # print('deg p2 =', p2.degree())
 
-    # channel = Channel()
+    print("Generating the composition polynomial and the FRI layers...")
     cp = get_CP(channel, p0, p1, p2)
     cp_eval = CP_eval(cp, eval_domain)
     cp_merkle = MerkleTree(cp_eval)
+    channel.send(cp_merkle.root)
+    print(channel.proof)
 
-    # part3: FRI
+
+    # part 3: FRI
 
     next_domain = next_fri_domain(eval_domain)
 
@@ -117,4 +123,12 @@ if __name__ == '__main__':
     assert next_l == [FieldElement(86)]
 
     fri_polys, fri_domains, fri_layers, fri_merkles = fri_commit(cp, eval_domain, cp_eval, cp_merkle, channel)
+    print(channel.proof)
+
+
+
+    # part 4: Decommitment
+
+    print("Generating queries and decommitments...")
+    decommit_fri(channel, f_eval, f_merkle, fri_layers, fri_merkles)
     print(channel.proof)
