@@ -22,6 +22,6 @@ over the underlying finite field F (every operation is done mudulo 3221225473).
 what we will proof: 
 ```math
 I know a field element X in F such that the 1023rd element 
-of the FibonacciSq sequence starting with 1 and X (which is 2338775057) is
+of the FibonacciSq sequence starting with 1 and X (which is 3141592) is
 2338775057 without revealing my X.
 ```
